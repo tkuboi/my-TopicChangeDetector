@@ -7,12 +7,12 @@ from utils import *
 
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model, Sequential, model_from_json
-from keras.layers import Dense, Activation, Dropout, Input, Masking, TimeDistributed, LSTM, Conv1D, Embedding, RepeatVector, Lambda, Dot, Multiply, Concatenate, Permute
+from keras.layers import Dense, Activation, Dropout, Input, Masking, TimeDistributed, LSTM, Conv1D, Embedding, RepeatVector, Lambda, Dot, Multiply, Concatenate, Permute, MaxPooling1D
 from keras.layers import GRU, Bidirectional, BatchNormalization, Reshape, Flatten, ThresholdedReLU
 from keras.optimizers import Adam
 
 UTTERANCE_SIZE = 200
-LABELS = ['Transition']
+LABELS = ['False', 'True']
 
 class TopicChangeDetector:
     """A class which incorporates a Keras model and methods to work on the model.
@@ -85,7 +85,7 @@ class TopicChangeDetector:
         """
         self.__model__.load_weights(filename)
 
-    def evaluate(self, test_X, test_Y, batch_size=10, epochs=1):
+    def evaluate(self, test_X, test_Y, batch_size=10):
         """Evaluate the model by calling the Keras model's evaluate method
         Args:
             test_X:
@@ -96,7 +96,7 @@ class TopicChangeDetector:
            Scalar test loss
         """ 
         return self.__model__.evaluate(
-            test_X, test_Y, batch_size=batch_size, epochs=epochs)
+            test_X, test_Y, batch_size=batch_size)
 
     def predict(self, x):
         """Make a prediction by calling the Keras model's predict method
@@ -115,9 +115,9 @@ class TopicChangeDetector:
             (x, y): x - list of utterances modified to fit to the model
                     y - list of labels ordered in the same order as x
         """
-        m = len(utterances) * 2 
+        m = len(utterances) * 3 
         x =  np.zeros((m, self.size))
-        y = np.zeros((m, self.size, len(self.labels))) 
+        y = np.zeros((m, len(self.labels))) 
         dids = []
         cur_did = None
         label = 0
@@ -134,8 +134,15 @@ class TopicChangeDetector:
 
             words = self.convert_to_index(self.fit_data_size(text))
             x[rec_count:] = np.asarray(words)
-            y[rec_count:] = np.asarray([[label]] * len(words))
+            for i in range(0,len(words)):
+                y[rec_count+i][label] = 1
             rec_count += len(words)
+            """if label == 1:
+                for i in range(0,3):
+                    x[rec_count:] = np.asarray(words)
+                    y[rec_count:] = np.asarray([[label]] * len(words))
+                    rec_count += len(words)
+            """
 
         return x[:rec_count],y[:rec_count]
 
@@ -181,10 +188,28 @@ class TopicChangeDetector:
             utterances: list of utterances
         Returns:
             x: list of utterances modified to fit to the model
+            y: zero filled matrix
         """
-        x = []
-        for utterance in utterances:
-            texts = self.fit_data_size(text)
-            x.extend(texts)
-        return x
+        return create_training_data(self, utterances, 0)
 
+    def check_result(self, prediction, label):
+        if prediction == 1:
+            if prediction == label:
+                self.score['TP'] += 1
+            else:
+                self.score['FP'] += 1
+        else:
+            if prediction == label:
+                self.score['TN'] += 1
+            else:
+                self.score['FN'] += 1
+
+    def test_model(self, X, Y):
+        for x,y in zip(X, Y):
+            result = self.predict(x)
+            y_c = np.argmax(y, axis=-1)
+            y_hat = np.argmax(result, axis=-1)
+            self.check_result(y_hat[0], y_c)
+            print(result, y_hat, y_c)
+     
+ 

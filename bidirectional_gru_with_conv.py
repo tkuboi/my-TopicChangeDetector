@@ -2,14 +2,14 @@ from model_factory import ModelFactory
 
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model, load_model, Sequential
-from keras.layers import Dense, Activation, Dropout, Input, Masking, TimeDistributed, LSTM, Conv1D, Embedding, RepeatVector, Lambda, Dot, Multiply, Concatenate, Permute
+from keras.layers import Dense, Activation, Dropout, Input, Masking, TimeDistributed, LSTM, Conv1D, Embedding, RepeatVector, Lambda, Dot, Multiply, Concatenate, Permute, MaxPooling1D
 from keras.layers import GRU, Bidirectional, BatchNormalization, Reshape, Flatten, ThresholdedReLU
 from keras.optimizers import Adam
 import numpy as np
 
 from utils import *
 
-class BidirectionalGruWithDense(ModelFactory):
+class BidirectionalGruWithConv(ModelFactory):
     """ Factory class to create a model with
     bidirectional GRU layer with unidirectional GRU layer.
     """
@@ -52,30 +52,25 @@ class BidirectionalGruWithDense(ModelFactory):
         #add embedding layer
         X = embedding_layer(X_input)
 
+        X = Conv1D(64, 3, activation='relu')(X)
+        X = MaxPooling1D(pool_size=4)(X)
         #add bidirectional GRU layer
-        #X = Bidirectional(GRU(n_d1, return_sequences = False))(X)
+        X = Bidirectional(GRU(n_d2, return_sequences = False))(X)
+        X = Dropout(0.5)(X)
+        X = BatchNormalization()(X)
+
+
+        #fully-connected layer
+        #X = Dense(n_c, activation='relu')(X)
         #X = Dropout(0.5)(X)
         #X = BatchNormalization()(X)
 
-        X = Bidirectional(GRU(n_d2, return_sequences = True))(X)
-        X = Dropout(0.5)(X)
-        X = BatchNormalization()(X)
+        #X = Flatten()(X)
 
-        #outputs = GRU(n_c)(X)
+        #fully-connected layer
+        #X = Dense(n_c, activation='sigmoid')(X)
         #X = Dropout(0.5)(X)
         #X = BatchNormalization()(X)
-
-        #fully-connected layer
-        X = Dense(n_c, activation='relu')(X)
-        X = Dropout(0.5)(X)
-        X = BatchNormalization()(X)
-
-        X = Flatten()(X)
-
-        #fully-connected layer
-        X = Dense(n_d2, activation='relu')(X)
-        X = Dropout(0.5)(X)
-        X = BatchNormalization()(X)
 
         #fully-connected layer
         outputs = Dense(n_c, activation='softmax')(X)

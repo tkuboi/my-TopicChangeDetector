@@ -8,6 +8,7 @@ from functools import partial
 from utils import *
 from topic_change_detector import TopicChangeDetector
 from bidirectional_gru_with_dense import BidirectionalGruWithDense
+from bidirectional_gru_with_conv import BidirectionalGruWithConv
 
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model, load_model, Sequential
@@ -20,8 +21,8 @@ MODEL_FILE = 'data/model.json'
 WEIGHTS_FILE = 'data/model.h5'
 TEXT_FILE = 'data/training_text.txt'
 BATCH = 10 
-EPOCH = 100
-DEV_SIZE = 10
+EPOCH = 50 
+DEV_SIZE = 40
 
 def load_text_data(textfile):
     """Read a text file containing lines of text.
@@ -35,6 +36,10 @@ def load_text_data(textfile):
         for line in lines:
             utterances.append(tuple(line.split("\t")))
     return utterances 
+
+def check_results(detector, results, labels):
+    for result, label in zip(results, labels):
+        detector.check_result(result, label)
 
 def main():
     """Train a model using lines of text contained in a file
@@ -59,7 +64,11 @@ def main():
     if os.path.isfile(MODEL_FILE):
         detector.load_model(MODEL_FILE)
     else: 
-        model = BidirectionalGruWithDense.create_model(
+        """model = BidirectionalGruWithDense.create_model(
+            input_shape=(X.shape[1], ), embedding_matrix=embedding_matrix,
+            vocab_len=len(word_to_index), n_d1=128, n_d2=128, n_c=len(detector.labels))
+        """
+        model = BidirectionalGruWithConv.create_model(
             input_shape=(X.shape[1], ), embedding_matrix=embedding_matrix,
             vocab_len=len(word_to_index), n_d1=128, n_d2=128, n_c=len(detector.labels))
         print(model.summary())
@@ -82,7 +91,7 @@ def main():
 
     #define optimizer and compile the model
     opt = Adam(lr=0.007, beta_1=0.9, beta_2=0.999, decay=0.01)
-    detector.compile(opt, loss='binary_crossentropy', metrics=['accuracy'])
+    detector.compile(opt, loss='categorical_crossentropy', metrics=['accuracy'])
 
     #split the training data into training set, test set, and dev set
     t_size = int(X.shape[0] * 0.9)
@@ -96,8 +105,19 @@ def main():
     #train the model
     detector.fit([train_X], train_Y, batch_size = BATCH,
                epochs=EPOCH)
-    detector.save_model(MODEL_FILE)
-    detector.save_weights(WEIGHTS_FILE)
+    #detector.save_model(MODEL_FILE)
+    #detector.save_weights(WEIGHTS_FILE)
+
+    print('shape of test_X:', test_X.shape)
+    print('shape of test_Y:', test_Y.shape)
+
+    evaluation = detector.evaluate([test_X], test_Y)
+    print(evaluation)
+
+    print('shape of dev_X:', dev_X.shape)
+    print('shape of dev_Y:', dev_Y.shape)
+    detector.test_model(dev_X, dev_Y)
+    print(detector.score)
 
 if __name__ == "__main__":
     main()
