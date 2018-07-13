@@ -107,7 +107,7 @@ class TopicChangeDetector:
         """
         return self.__model__.predict([np.array([x])])
 
-    def create_training_data(self, utterances, repeat_size=1):
+    def create_training_data(self, utterances, repeat_size=1, duplicate_size=0):
         """Create training data by labeling
         Args:
             utterances: list of utterance(uid, did, start, end, text)
@@ -115,9 +115,16 @@ class TopicChangeDetector:
             (x, y): x - list of utterances modified to fit to the model
                     y - list of labels ordered in the same order as x
         """
+        def insert_data(x, y, z, words, label, texts):
+            x[rec_count:rec_count+len(words),] = np.asarray(words)
+            z.extend(texts)
+            for i in range(0,len(words)):
+                y[rec_count+i][label] = 1
+ 
         m = len(utterances) * 3 
         x =  np.zeros((m, self.size))
-        y = np.zeros((m, len(self.labels))) 
+        y = np.zeros((m, len(self.labels)))
+        z = [] 
         dids = []
         cur_did = None
         label = 0
@@ -132,19 +139,23 @@ class TopicChangeDetector:
                 label = 0
                 count = 0
 
-            words = self.convert_to_index(self.fit_data_size(text))
-            x[rec_count:] = np.asarray(words)
+            texts = self.fit_data_size(text)
+            words = self.convert_to_index(texts)
+
+            """x[rec_count:rec_count+len(words),] = np.asarray(words)
             for i in range(0,len(words)):
                 y[rec_count+i][label] = 1
-            rec_count += len(words)
-            """if label == 1:
-                for i in range(0,3):
-                    x[rec_count:] = np.asarray(words)
-                    y[rec_count:] = np.asarray([[label]] * len(words))
-                    rec_count += len(words)
             """
+            insert_data(x, y, z, words, label, texts)
+            rec_count += len(words)
+            if label == 1 and duplicate_size:
+                for j in range(0,duplicate_size):
+                    insert_data(x, y, z, words, label, texts)
+                    rec_count += len(words)
+            
+            
 
-        return x[:rec_count],y[:rec_count]
+        return x[:rec_count],y[:rec_count], z
 
     def convert_to_index(self, words):
         results = []
@@ -204,12 +215,13 @@ class TopicChangeDetector:
             else:
                 self.score['FN'] += 1
 
-    def test_model(self, X, Y):
-        for x,y in zip(X, Y):
+    def test_model(self, X, Y, Z):
+        for x,y,z in zip(X, Y, Z):
             result = self.predict(x)
             y_c = np.argmax(y, axis=-1)
             y_hat = np.argmax(result, axis=-1)
             self.check_result(y_hat[0], y_c)
+            print(" ".join(z))
             print(result, y_hat, y_c)
      
  

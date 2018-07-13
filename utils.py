@@ -125,9 +125,12 @@ def create_emb_matrix(word_to_index, word_to_vec_map):
             emb_matrix[index, :] = vec
     return emb_matrix
 
-def shuffle(X,Y):
+def shuffle(X,Y,Z=None):
     #shuffle examples and labels arrays together 
     rng_state = np.random.get_state()
     np.random.shuffle(X)
     np.random.set_state(rng_state)
     np.random.shuffle(Y)
+    if Z:
+        np.random.set_state(rng_state)
+        np.random.shuffle(Z)
