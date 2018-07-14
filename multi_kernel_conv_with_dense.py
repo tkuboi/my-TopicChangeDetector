@@ -55,9 +55,9 @@ class MultiKernelConvWithDense(ModelFactory):
 
         X1 = Conv1D(50, 3, activation='relu')(X)
         X1 = MaxPooling1D(pool_size=4)(X1)
-        X2 = Conv1D(50, 5, activation='relu')(X)
+        X2 = Conv1D(50, 4, activation='relu')(X)
         X2 = MaxPooling1D(pool_size=4)(X2)
-        X3 = Conv1D(50, 7, activation='relu')(X)
+        X3 = Conv1D(50, 5, activation='relu')(X)
         X3 = MaxPooling1D(pool_size=4)(X3)
         
         X = Concatenate(axis=1)([X1, X2, X3])

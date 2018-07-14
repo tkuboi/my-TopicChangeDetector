@@ -21,11 +21,11 @@ from keras.layers import GRU, Bidirectional, BatchNormalization, Reshape, Flatte
 from keras.optimizers import Adam
 
 EMBEDDING_FILE = 'data/glove.6B.50d.txt'
-MODEL_FILE = 'data/model12.json'
-WEIGHTS_FILE = 'data/model12.h5'
-TEXT_FILE = 'data/training_text.txt'
+MODEL_FILE = 'data/model1.json'
+WEIGHTS_FILE = 'data/model1.h5'
+TEXT_FILE = 'data/training_text_100000.txt'
 BATCH = 10 
-EPOCH = 10 
+EPOCH = 100 
 DEV_SIZE = 1000 
 
 def load_text_data(textfile):
@@ -52,6 +52,7 @@ def main():
 
     #read golve vecs
     words, word_to_index, index_to_word, word_to_vec_map = read_glove_vecs(EMBEDDING_FILE)
+    print(index_to_word[400001])
     #create word embedding matrix
     embedding_matrix = create_emb_matrix(word_to_index, word_to_vec_map)
     print('shape of embedding_matrix:', embedding_matrix.shape)
@@ -62,7 +63,7 @@ def main():
 
     #create an instance of Punctutor and create training data
     detector = TopicChangeDetector(word_to_index, None)
-    X, Y, Z = detector.create_training_data(utterances, 1, 3)
+    X, Y, Z = detector.create_training_data(utterances, 1, 10)
 
     #if a model already exists, load the model
     if os.path.isfile(MODEL_FILE):
@@ -89,7 +90,7 @@ def main():
     print ('Summary of Y:', denom_Y)
 
     print('shape of X:', X.shape)
-    #print(X[0:10]) 
+    print(X[0:1]) 
     print('shape of Y:', Y.shape)
     #print(Y[0:10])
 
@@ -121,7 +122,7 @@ def main():
     print('shape of dev_X:', dev_X.shape)
     print('shape of dev_Y:', dev_Y.shape)
     detector.test_model(dev_X, dev_Y, dev_Z)
-    print(detector.score)
+    print(detector.print_score())
 
 if __name__ == "__main__":
     main()

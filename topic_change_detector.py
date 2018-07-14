@@ -11,7 +11,7 @@ from keras.layers import Dense, Activation, Dropout, Input, Masking, TimeDistrib
 from keras.layers import GRU, Bidirectional, BatchNormalization, Reshape, Flatten, ThresholdedReLU
 from keras.optimizers import Adam
 
-UTTERANCE_SIZE = 200
+UTTERANCE_SIZE = 256
 LABELS = ['False', 'True']
 
 class TopicChangeDetector:
@@ -107,6 +107,14 @@ class TopicChangeDetector:
         """
         return self.__model__.predict([np.array([x])])
 
+    def generate_input_data(self, pre_text, text, post_text):
+        texts = []
+        texts.extend(self.fit_data_size(pre_text))
+        texts.extend(self.fit_data_size(text))
+        texts.extend(self.fit_data_size(post_text))
+        words = self.convert_to_index([texts])
+        return texts, words
+
     def create_training_data(self, utterances, repeat_size=1, duplicate_size=0):
         """Create training data by labeling
         Args:
@@ -117,12 +125,12 @@ class TopicChangeDetector:
         """
         def insert_data(x, y, z, words, label, texts):
             x[rec_count:rec_count+len(words),] = np.asarray(words)
-            z.extend(texts)
+            z.append(texts)
             for i in range(0,len(words)):
                 y[rec_count+i][label] = 1
  
         m = len(utterances) * 3 
-        x =  np.zeros((m, self.size))
+        x =  np.zeros((m, 3 * self.size))
         y = np.zeros((m, len(self.labels)))
         z = [] 
         dids = []
@@ -130,7 +138,7 @@ class TopicChangeDetector:
         label = 0
         count = 0
         rec_count = 0
-        for uid,did,start,end,text in utterances:
+        for (i,(uid,did,start,end,text)) in enumerate(utterances):
             if did != cur_did or (label == 1 and count < repeat_size):
                 label = 1
                 count += 1
@@ -138,22 +146,21 @@ class TopicChangeDetector:
             else:
                 label = 0
                 count = 0
-
-            texts = self.fit_data_size(text)
-            words = self.convert_to_index(texts)
-
-            """x[rec_count:rec_count+len(words),] = np.asarray(words)
-            for i in range(0,len(words)):
-                y[rec_count+i][label] = 1
-            """
+    
+            if label == 0 and (i % 2 == 0 or i % 3 == 0):
+                continue
+ 
+            texts, words = self.generate_input_data(
+                None if i == 0 else utterances[i - 1][4],
+                text,
+                None if i == len(utterances) - 1 else utterances[i + 1][4]) 
+       
             insert_data(x, y, z, words, label, texts)
             rec_count += len(words)
             if label == 1 and duplicate_size:
                 for j in range(0,duplicate_size):
                     insert_data(x, y, z, words, label, texts)
                     rec_count += len(words)
-            
-            
 
         return x[:rec_count],y[:rec_count], z
 
@@ -182,16 +189,11 @@ class TopicChangeDetector:
         return idx
 
     def fit_data_size(self, text):
-        rest = text.split()
-        results = [] 
-        count = 0 
-        while len(rest) > self.size:
-            results.append(rest[:self.size])
-            rest = rest[self.size:]
-            count += 1
+        rest = [] if text is None else text.split()
+        if rest and len(rest) > self.size:
+            return rest[:self.size]
         rest.extend([""] * (self.size - len(rest)))
-        results.append(rest)
-        return results
+        return rest
 
     def create_live_data(self, utterances):
         """Create live data to be fed to the model 
@@ -207,13 +209,17 @@ class TopicChangeDetector:
         if prediction == 1:
             if prediction == label:
                 self.score['TP'] += 1
+                self.score['correct'] += 1
             else:
                 self.score['FP'] += 1
+                self.score['wrong'] += 1
         else:
             if prediction == label:
                 self.score['TN'] += 1
+                self.score['correct'] += 1
             else:
                 self.score['FN'] += 1
+                self.score['wrong'] += 1
 
     def test_model(self, X, Y, Z):
         for x,y,z in zip(X, Y, Z):
@@ -224,4 +230,11 @@ class TopicChangeDetector:
             print(" ".join(z))
             print(result, y_hat, y_c)
      
- 
+    def print_score(self):
+        return "TP:%s, FP:%s, TN:%s, FN:%s, Precision:%s, Recall:%s, Accuracy:%s" % (
+                self.score['TP'], self.score['FP'],
+                self.score['TN'], self.score['FN'],
+                float(self.score['TP']) / (self.score['TP'] + self.score['FP']) * 100,
+                float(self.score['TP']) / (self.score['TP'] + self.score['FN']) * 100,
+                float(self.score['correct']) / (self.score['correct'] + self.score['wrong']) * 100
+            ) 
