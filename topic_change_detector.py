@@ -115,13 +115,14 @@ class TopicChangeDetector:
         words = self.convert_to_index([texts])
         return texts, words
 
-    def create_training_data(self, utterances, repeat_size=1, duplicate_size=0):
+    def create_training_data(self, utterances, repeat_size=1, duplicate_size=0, skip=False):
         """Create training data by labeling
         Args:
             utterances: list of utterance(uid, did, start, end, text)
         Returns:
-            (x, y): x - list of utterances modified to fit to the model
+            (x, y, z): x - list of utterances modified to fit to the model
                     y - list of labels ordered in the same order as x
+                    z - text
         """
         def insert_data(x, y, z, words, label, texts):
             x[rec_count:rec_count+len(words),] = np.asarray(words)
@@ -147,7 +148,7 @@ class TopicChangeDetector:
                 label = 0
                 count = 0
     
-            if label == 0 and (i % 2 == 0 or i % 3 == 0):
+            if label == 0 and skip and (i % 2 == 0 or i % 3 == 0):
                 continue
  
             texts, words = self.generate_input_data(
@@ -202,6 +203,7 @@ class TopicChangeDetector:
         Returns:
             x: list of utterances modified to fit to the model
             y: zero filled matrix
+            z: text
         """
         return create_training_data(self, utterances, 0)
 

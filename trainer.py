@@ -21,12 +21,12 @@ from keras.layers import GRU, Bidirectional, BatchNormalization, Reshape, Flatte
 from keras.optimizers import Adam
 
 EMBEDDING_FILE = 'data/glove.6B.50d.txt'
-MODEL_FILE = 'data/model1.json'
-WEIGHTS_FILE = 'data/model1.h5'
-TEXT_FILE = 'data/training_text_100000.txt'
+MODEL_FILE = 'data/model3.json'
+WEIGHTS_FILE = 'data/model3.h5'
+TEXT_FILE = 'data/training_text_1000.txt'
 BATCH = 10 
-EPOCH = 100 
-DEV_SIZE = 1000 
+EPOCH = 1 
+DEV_SIZE = 100 
 
 def load_text_data(textfile):
     """Read a text file containing lines of text.
@@ -63,7 +63,7 @@ def main():
 
     #create an instance of Punctutor and create training data
     detector = TopicChangeDetector(word_to_index, None)
-    X, Y, Z = detector.create_training_data(utterances, 1, 10)
+    X, Y, Z = detector.create_training_data(utterances, 1, 10, True)
 
     #if a model already exists, load the model
     if os.path.isfile(MODEL_FILE):
