@@ -205,7 +205,7 @@ class TopicChangeDetector:
             y: zero filled matrix
             z: text
         """
-        return create_training_data(self, utterances, 0)
+        return self.create_training_data(utterances, 0)
 
     def check_result(self, prediction, label):
         if prediction == 1:
@@ -224,6 +224,7 @@ class TopicChangeDetector:
                 self.score['wrong'] += 1
 
     def test_model(self, X, Y, Z):
+        results = []
         for x,y,z in zip(X, Y, Z):
             result = self.predict(x)
             y_c = np.argmax(y, axis=-1)
@@ -231,6 +232,16 @@ class TopicChangeDetector:
             self.check_result(y_hat[0], y_c)
             print(" ".join(z))
             print(result, y_hat, y_c)
+            results.append({"prediction":y_hat[0],"label":y_c})
+        return results
+
+    def detect_transitions(self, X):
+        results = []
+        for x in X:
+            result = self.predict(x)
+            y_hat = np.argmax(result, axis=-1)
+            results.append(y_hat[0])
+        return results
      
     def print_score(self):
         return "TP:%s, FP:%s, TN:%s, FN:%s, Precision:%s, Recall:%s, Accuracy:%s" % (

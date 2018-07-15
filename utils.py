@@ -13,9 +13,11 @@ import keras.backend as K
 
 from urllib2 import Request as request
 from itertools import product
+from traceback import format_exc
 import collections
 import os
 import zipfile
+import subprocess
 
 import numpy as np
 import tensorflow as tf
@@ -34,6 +36,11 @@ def read_glove_vecs(glove_file):
         index_to_words: a dictionary for index to words mapping
         word_to_vec_map: a dictionary to map a word to a vector
     """
+    if not os.path.isfile(glove_file):
+        url = "https://s3-us-west-2.amazonaws.com/videostorage-us-west/model/glove.6B.50d.txt"
+        cmd = ['wget', '-O', glove_file, url]
+        call_subprocess(cmd)
+        
     with open(glove_file, 'r') as f:
         words = set()
         word_to_vec_map = {}
@@ -134,3 +141,24 @@ def shuffle(X,Y,Z=None):
     if Z:
         np.random.set_state(rng_state)
         np.random.shuffle(Z)
+
+def call_subprocess(args):
+    """
+    Makes a subprocess call and returns whether it was successful.
+    Reasons for failure:
+        * non-zero exit code
+        * CalledProcessError
+        * OSError
+    """
+    print args
+    try:
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        standardOut, standardErr = p.communicate()
+        p.wait()
+        returnCode = p.returncode
+        return (returnCode == 0, standardOut)
+    except subprocess.CalledProcessError:
+        print 'call_subprocess raised an exception:\n%s' % (format_exc())
+    except:
+        print 'call_subprocess raised an exception:\n%s' % (format_exc())
+    return (False, "")
